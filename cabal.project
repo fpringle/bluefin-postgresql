@@ -1,0 +1,9 @@
+packages:
+    bluefin-postgresql/
+    bluefin-opaleye/
+
+-- only build documentation on demand.
+documentation: False
+
+package *
+  documentation: False
