@@ -24,9 +24,9 @@ module Bluefin.Opaleye
 
     -- * Interpreters
   , runOpaleyeWithConnection
-  -- , runOpaleyeWithConnectionCounting
+  , runOpaleyeWithConnectionCounting
   , runOpaleyeConnection
-  -- , runOpaleyeConnectionCounting
+  , runOpaleyeConnectionCounting
 
     -- * Counting SQL operations
   , SQLOperationCounts (..)
@@ -41,6 +41,7 @@ import Bluefin.IO
 import Bluefin.Opaleye.Count
 import Bluefin.Opaleye.Effect
 import qualified Bluefin.PostgreSQL.Connection as Conn
+import Bluefin.State
 import Data.Profunctor.Product.Default
 import qualified Database.PostgreSQL.Simple as PSQL
 import GHC.Stack
@@ -126,20 +127,30 @@ runOpaleyeConnection ioe conn k =
 
 {- | Same as 'runOpaleyeWithConnection', but we track the number of SQL operations that
 we perform.
-runOpaleyeWithConnectionCounting ::
-  forall a es.
-  (HasCallStack, State SQLOperationCounts :> es, Conn.WithConnection :> es, IOE :> es) =>
-  Eff (Opaleye : es) a ->
-  Eff es a
-runOpaleyeWithConnectionCounting = runOpaleyeWithConnection . opaleyeAddCounting
-
-{\- | Same as 'runOpaleyeConnection', but we track the number of SQL operations that
-we perform.
--\}
-runOpaleyeConnectionCounting ::
-  (HasCallStack, State SQLOperationCounts :> es, IOE :> es) =>
-  PSQL.Connection ->
-  Eff (Opaleye : es) a ->
-  Eff es a
-runOpaleyeConnectionCounting conn = runOpaleyeConnection conn . opaleyeAddCounting
 -}
+runOpaleyeWithConnectionCounting ::
+  (HasCallStack, e1 :> es, e2 :> es, e3 :> es) =>
+  Conn.WithConnection e1 ->
+  IOE e2 ->
+  State SQLOperationCounts e3 ->
+  (forall e. Opaleye e -> Eff (e :& es) a) ->
+  Eff es a
+runOpaleyeWithConnectionCounting wc ioe st k =
+  runOpaleyeWithConnection wc ioe $ \o1 ->
+    opaleyeAddCounting st o1 $ \o2 ->
+      useImplUnder (k o2)
+
+{- | Same as 'runOpaleyeConnection', but we track the number of SQL operations that
+we perform.
+-}
+runOpaleyeConnectionCounting ::
+  (HasCallStack, e1 :> es, e2 :> es) =>
+  IOE e1 ->
+  PSQL.Connection ->
+  State SQLOperationCounts e2 ->
+  (forall e. Opaleye e -> Eff (e :& es) a) ->
+  Eff es a
+runOpaleyeConnectionCounting ioe conn st k =
+  runOpaleyeConnection ioe conn $ \o1 ->
+    opaleyeAddCounting st o1 $ \o2 ->
+      useImplUnder (k o2)

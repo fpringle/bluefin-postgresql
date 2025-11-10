@@ -1,6 +1,7 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# OPTIONS_GHC -Wno-missing-fields #-}
 
 {- | Thanks to our dynamic 'Opaleye' effect, we can write an alternative interpreter which,
 as well as performing SQL operations as before, will also keep a tally of the number of
@@ -97,7 +98,7 @@ Counts at n=50: INSERT: user: 50
 module Bluefin.Opaleye.Count
   ( -- * Counting SQL operations
     SQLOperationCounts (..)
-  -- , opaleyeAddCounting
+  , opaleyeAddCounting
   , withCounts
 
     -- * Pretty-printing
@@ -110,6 +111,7 @@ module Bluefin.Opaleye.Count
   )
 where
 
+import Bluefin.Compound
 import Bluefin.Eff
 import Bluefin.Opaleye.Effect
 import Bluefin.State
@@ -163,8 +165,6 @@ instance Semigroup SQLOperationCounts where
 instance Monoid SQLOperationCounts where
   mempty = SQLOperationCounts 0 mempty mempty mempty
 
--- TODO
-
 {- | Add counting of SQL operations to the interpreter of an 'Opaleye' effect.
 Note that the effect itself is not actually interpreted. We do this using 'passthrough',
 which lets us perform some actions based on the 'Opaleye' constructor and then pass them
@@ -177,37 +177,52 @@ more than once. Unless you're sure, it's probably better to use
 'Bluefin.Opaleye.runOpaleyeConnectionCounting' or
 'Bluefin.Opaleye.runOpaleyeWithConnectionCounting'.
 -}
-
-{-
 opaleyeAddCounting ::
-  forall a es.
-  (HasCallStack, State SQLOperationCounts :> es) =>
-  Eff (Opaleye : es) a ->
-  Eff (Opaleye : es) a
-opaleyeAddCounting = interpose $ \env op -> do
-  incrementOp op
-  passthrough env op
+  forall es e1 e2 a.
+  (e1 :> es, e2 :> es) =>
+  State SQLOperationCounts e1 ->
+  Opaleye e2 ->
+  (forall e. Opaleye e -> Eff (e :& es) a) ->
+  Eff es a
+opaleyeAddCounting st oldEffect k =
+  useImplIn
+    k
+    MkOpaleye
+      { runSelectExplicitImpl = \ff sel -> do
+          incrementSelect
+          useImplUnder (runSelectExplicitImpl oldEffect ff sel)
+      , runSelectFoldExplicitImpl = \ff sel b f -> do
+          incrementSelect
+          useImplUnder (runSelectFoldExplicitImpl oldEffect ff sel b f)
+      , runInsertImpl = \ins -> do
+          incrementInsert $ insertTableName ins
+          useImplUnder (runInsertImpl oldEffect ins)
+      , runDeleteImpl = \del -> do
+          incrementDelete $ deleteTableName del
+          useImplUnder (runDeleteImpl oldEffect del)
+      , runUpdateImpl = \upd -> do
+          incrementUpdate $ updateTableName upd
+          useImplUnder (runUpdateImpl oldEffect upd)
+      }
   where
-    incrementOp :: forall b localEs. Opaleye (Eff localEs) b -> Eff (Opaleye : es) ()
-    incrementOp = \case
-      RunSelectExplicit {} -> incrementSelect
-      RunSelectFoldExplicit {} -> incrementSelect
-      RunInsert ins -> incrementInsert $ insertTableName ins
-      RunDelete del -> incrementDelete $ deleteTableName del
-      RunUpdate upd -> incrementUpdate $ updateTableName upd
+    incrementSelect :: Eff (e :& es) ()
+    incrementSelect = modify st $ \counts ->
+      counts {sqlSelects = succ $ sqlSelects counts}
+
+    incrementInsert :: QualifiedIdentifier -> Eff (e :& es) ()
+    incrementInsert name = modify st $ \counts ->
+      counts {sqlInserts = incrementMap name $ sqlInserts counts}
+
+    incrementUpdate :: QualifiedIdentifier -> Eff (e :& es) ()
+    incrementUpdate name = modify st $ \counts ->
+      counts {sqlUpdates = incrementMap name $ sqlUpdates counts}
+
+    incrementDelete :: QualifiedIdentifier -> Eff (e :& es) ()
+    incrementDelete name = modify st $ \counts ->
+      counts {sqlDeletes = incrementMap name $ sqlDeletes counts}
 
     incrementMap :: QualifiedIdentifier -> Map QualifiedIdentifier Natural -> Map QualifiedIdentifier Natural
     incrementMap = Map.alter (Just . maybe 1 succ)
-
-    incrementSelect = modify $ \counts ->
-      counts {sqlSelects = succ $ sqlSelects counts}
-    incrementInsert name = modify $ \counts ->
-      counts {sqlInserts = incrementMap name $ sqlInserts counts}
-    incrementUpdate name = modify $ \counts ->
-      counts {sqlUpdates = incrementMap name $ sqlUpdates counts}
-    incrementDelete name = modify $ \counts ->
-      counts {sqlDeletes = incrementMap name $ sqlDeletes counts}
--}
 
 -- | This allows us to count the number of SQL operations over the course of a sub-operation.
 withCounts ::
