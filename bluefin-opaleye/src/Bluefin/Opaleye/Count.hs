@@ -190,19 +190,19 @@ opaleyeAddCounting st oldEffect k =
     MkOpaleye
       { runSelectExplicitImpl = \ff sel -> do
           incrementSelect
-          useImplUnder (runSelectExplicitImpl oldEffect ff sel)
+          runSelectExplicit oldEffect ff sel
       , runSelectFoldExplicitImpl = \ff sel b f -> do
           incrementSelect
-          useImplUnder (runSelectFoldExplicitImpl oldEffect ff sel b f)
+          runSelectFoldExplicit oldEffect ff sel b (\b' -> useImpl . f b')
       , runInsertImpl = \ins -> do
           incrementInsert $ insertTableName ins
-          useImplUnder (runInsertImpl oldEffect ins)
+          runInsert oldEffect ins
       , runDeleteImpl = \del -> do
           incrementDelete $ deleteTableName del
-          useImplUnder (runDeleteImpl oldEffect del)
+          runDeleteImpl (mapHandle oldEffect) del
       , runUpdateImpl = \upd -> do
           incrementUpdate $ updateTableName upd
-          useImplUnder (runUpdateImpl oldEffect upd)
+          runUpdate oldEffect upd
       }
   where
     incrementSelect :: Eff (e :& es) ()
