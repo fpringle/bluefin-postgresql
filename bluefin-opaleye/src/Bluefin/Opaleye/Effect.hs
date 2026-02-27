@@ -49,6 +49,7 @@ instance Handle Opaleye where
       , runUpdateImpl = useImplUnder . runUpdateImpl h
       }
 
+-- | Lifted 'O.RunSelectExplicit'.
 runSelectExplicit ::
   (e :> es) =>
   Opaleye e ->
@@ -57,6 +58,7 @@ runSelectExplicit ::
   Eff es [haskells]
 runSelectExplicit o ff sel = makeOp (runSelectExplicitImpl (mapHandle o) ff sel)
 
+-- | Lifted 'O.RunSelectFoldExplicit'.
 runSelectFoldExplicit ::
   (e :> es) =>
   Opaleye e ->
@@ -67,6 +69,7 @@ runSelectFoldExplicit ::
   Eff es b
 runSelectFoldExplicit o ff sel b f = makeOp (runSelectFoldExplicitImpl (mapHandle o) ff sel b f)
 
+-- | Lifted 'O.RunInsert'.
 runInsert ::
   (e :> es) =>
   Opaleye e ->
@@ -74,6 +77,7 @@ runInsert ::
   Eff es haskells
 runInsert o ins = makeOp (runInsertImpl (mapHandle o) ins)
 
+-- | Lifted 'O.RunDelete'.
 runDelete ::
   (e :> es) =>
   Opaleye e ->
@@ -81,6 +85,7 @@ runDelete ::
   Eff es haskells
 runDelete o ins = makeOp (runDeleteImpl (mapHandle o) ins)
 
+-- | Lifted 'O.RunUpdate'.
 runUpdate ::
   (e :> es) =>
   Opaleye e ->

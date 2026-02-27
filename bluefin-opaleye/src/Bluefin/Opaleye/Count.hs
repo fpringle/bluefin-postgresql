@@ -1,7 +1,6 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# OPTIONS_GHC -Wno-missing-fields #-}
 
 {- | Thanks to our dynamic 'Opaleye' effect, we can write an alternative interpreter which,
 as well as performing SQL operations as before, will also keep a tally of the number of
@@ -56,7 +55,7 @@ Counts at n=10: INSERT: 1110
 Counts at n=50: INSERT: 127550
 @
 
-This is obviously going to have a severe performance impact. Rearranging our implementatino of @insertUsers@:
+This is obviously going to have a severe performance impact. Rearranging our implementation of @insertUsers@:
 
 @
 insertUsersBetter :: ('Opaleye' :> es) => [User] -> Eff es ()
@@ -166,8 +165,8 @@ instance Monoid SQLOperationCounts where
   mempty = SQLOperationCounts 0 mempty mempty mempty
 
 {- | Add counting of SQL operations to the interpreter of an 'Opaleye' effect.
-Note that the effect itself is not actually interpreted. We do this using 'passthrough',
-which lets us perform some actions based on the 'Opaleye' constructor and then pass them
+Note that the effect itself is not actually interpreted. After updating our t'SQLOperationCounts' state
+ based on the 'Opaleye' constructor, we then pass them
 through to the upstream handler (e.g. 'Bluefin.Opaleye.runOpaleyeWithConnection' or
 'Bluefin.Opaleye.runOpaleyeConnection'). See 'Bluefin.Opaleye.runOpaleyeConnectionCounting'
 and 'Bluefin.Opaleye.runOpaleyeWithConnectionCounting' for interpreters that do both.

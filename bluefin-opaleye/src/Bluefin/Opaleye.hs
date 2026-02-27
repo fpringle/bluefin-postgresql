@@ -1,6 +1,6 @@
 module Bluefin.Opaleye
   ( -- * Effect
-    Opaleye (..)
+    Opaleye
 
     -- * Effectful functions
 
