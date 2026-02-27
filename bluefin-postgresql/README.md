@@ -1,6 +1,6 @@
 # bluefin-postgresql
 
-This package provides an `bluefin` effect for [postgresql-simple](https://hackage.haskell.org/package/postgresql-simple)'s `Connection` type.
+This package provides a `bluefin` effect for [postgresql-simple](https://hackage.haskell.org/package/postgresql-simple)'s `Connection` type.
 
 It defines a dynamic effect to allow effectful functions to use a `Connection`, without worrying about where that `Connection` comes from.
 

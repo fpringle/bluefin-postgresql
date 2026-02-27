@@ -7,6 +7,8 @@ and this project adheres to [Haskell Package Versioning Policy](https://pvp.hask
 
 ## [Unreleased]
 
+## [0.1.0.0] - 27.02.2026
+
 ### Added
 
 - First edition of the package, ready for feedback.
@@ -14,4 +16,5 @@ and this project adheres to [Haskell Package Versioning Policy](https://pvp.hask
 - Reasonably detailed READMEs.
 - CI that builds and tests the packages for each version of GHC in the `tested-with` field.
 
-[unreleased]: https://github.com/fpringle/bluefin-postgresql/compare/bluefin-opaleye-0.1.1.0...HEAD
+[unreleased]: https://github.com/fpringle/bluefin-postgresql/compare/bluefin-opaleye-0.1.0.0...HEAD
+[0.1.0.0]: https://github.com/fpringle/bluefin-postgresql/releases/tag/bluefin-opaleye-0.1.0.0
