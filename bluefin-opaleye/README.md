@@ -1,6 +1,6 @@
 # bluefin-opaleye
 
-This package provides an `bluefin` effect for [Opaleye](https://hackage.haskell.org/package/opaleye) operations.
+This package provides a `bluefin` effect for [Opaleye](https://hackage.haskell.org/package/opaleye) operations.
 
 It combines the very safe, high-level syntax of Opaleye, with the `WithConnection` abstraction of [bluefin-postgresql](https://github.com/fpringle/bluefin-postgresql/blob/main/bluefin-postgresql#readme).
 
