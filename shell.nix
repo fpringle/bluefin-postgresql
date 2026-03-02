@@ -9,6 +9,9 @@ let
     if packages == ""
     then allPackages
     else nixpkgs.lib.strings.splitString "," packages;
+  sources = import ./nix/sources.nix;
+  hlint = (import sources.nixpkgs { }).hlint;
+  ghcid = (import sources.nixpkgs { }).ghcid;
 in
 with nixpkgs;
 with nixpkgs.haskellPackages;

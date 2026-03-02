@@ -1,6 +1,6 @@
 let
   # set the GHC version for the entire project.
-  ghc-version = "ghc984";
+  ghc-version = "ghc910";
 
   sources = import ./sources.nix;
   nixpkgs = import sources.nixpkgs { overlays = [ overlay ]; };
@@ -17,11 +17,14 @@ let
 
       haskell-overrides = hfinal: hprev:
         let
-          # When we pin specific versions of Haskell packages, they'll go here using callCabal2Nix.
+          bluefin = sources."bluefin-0.5.1.0";
+          # bluefin = sources."bluefin-0.2.7.0";
+
           packageOverrides = {
-            /*
-            hello = doJailbreak (hfinal.callCabal2nix "hello" sources.hello { });
-            */
+            bluefin-internal = hfinal.callCabal2nixWithOptions "bluefin-internal" bluefin "--subpath bluefin-internal" { };
+            bluefin = hfinal.callCabal2nixWithOptions "bluefin" bluefin "--subpath bluefin" { };
+            postgresql-libpq = doJailbreak hprev.postgresql-libpq;
+            hlint = doJailbreak hprev.hlint;
           };
 
           makePackage = name: path:
