@@ -12,6 +12,7 @@ let
   sources = import ./nix/sources.nix;
   hlint = (import sources.nixpkgs { }).hlint;
   ghcid = (import sources.nixpkgs { }).ghcid;
+  apply-refact- = (import sources.nixpkgs { }).haskellPackages.apply-refact;
 in
 with nixpkgs;
 with nixpkgs.haskellPackages;
@@ -21,6 +22,7 @@ shellFor {
     cabal-install
     haskell-language-server
     hlint
+    apply-refact-
     fourmolu
     ghcid
     niv
