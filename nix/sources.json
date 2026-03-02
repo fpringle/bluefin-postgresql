@@ -1,4 +1,28 @@
 {
+    "bluefin-0.2.2.0": {
+        "branch": "master",
+        "description": null,
+        "homepage": null,
+        "owner": "tomjaguarpaw",
+        "repo": "bluefin",
+        "rev": "f7d6eafdd374ae6ab08dd6366d927e01591a3132",
+        "sha256": "02q60sdznpwmsp8xlvw6gv75y15sam0w71cic1wqwsrgi7h9szgc",
+        "type": "tarball",
+        "url": "https://github.com/tomjaguarpaw/bluefin/archive/f7d6eafdd374ae6ab08dd6366d927e01591a3132.tar.gz",
+        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
+    },
+    "bluefin-0.4.0.1": {
+        "branch": "master",
+        "description": null,
+        "homepage": null,
+        "owner": "tomjaguarpaw",
+        "repo": "bluefin",
+        "rev": "24fd7a47cdb88c79f643e1b42a4ef69cdfc90077",
+        "sha256": "0kyffd7lcn9z2djvrm8k6a3indyimq5f0zi8d90bxynpl8lmq56r",
+        "type": "tarball",
+        "url": "https://github.com/tomjaguarpaw/bluefin/archive/24fd7a47cdb88c79f643e1b42a4ef69cdfc90077.tar.gz",
+        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
+    },
     "nixpkgs": {
         "branch": "nixos-unstable",
         "description": "Nix Packages collection",
