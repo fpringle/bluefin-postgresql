@@ -1,3 +1,10 @@
+{-# LANGUAGE CPP #-}
+#if MIN_VERSION_bluefin(0, 4, 0)
+{-# LANGUAGE DerivingVia #-}
+{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+#endif
+
 module Bluefin.Opaleye.Effect
   ( -- * Effect
     Opaleye (..)
@@ -39,15 +46,35 @@ data Opaleye (e :: Effects) = MkOpaleye
   -- ^ Lifted 'O.RunUpdate'.
   }
 
+mapHandleOpaleye :: (e :> es) => Opaleye e -> Opaleye es
+mapHandleOpaleye h =
+  MkOpaleye
+    { runSelectExplicitImpl = \ff sel -> useImplUnder (runSelectExplicitImpl h ff sel)
+    , runSelectFoldExplicitImpl = \ff sel b f -> useImplUnder (runSelectFoldExplicitImpl h ff sel b f)
+    , runInsertImpl = useImplUnder . runInsertImpl h
+    , runDeleteImpl = useImplUnder . runDeleteImpl h
+    , runUpdateImpl = useImplUnder . runUpdateImpl h
+    }
+
+#if MIN_VERSION_bluefin(0, 4, 0)
+
+deriving via OneWayCoercibleHandle Opaleye instance (Handle Opaleye)
+instance (e :> es) => OneWayCoercible (Opaleye e) (Opaleye es) where
+  oneWayCoercibleImpl = oneWayCoercibleTrustMe mapHandleOpaleye
+
+#else
+#if MIN_VERSION_bluefin(0, 2, 1)
+
 instance Handle Opaleye where
-  mapHandle h =
-    MkOpaleye
-      { runSelectExplicitImpl = \ff sel -> useImplUnder (runSelectExplicitImpl h ff sel)
-      , runSelectFoldExplicitImpl = \ff sel b f -> useImplUnder (runSelectFoldExplicitImpl h ff sel b f)
-      , runInsertImpl = useImplUnder . runInsertImpl h
-      , runDeleteImpl = useImplUnder . runDeleteImpl h
-      , runUpdateImpl = useImplUnder . runUpdateImpl h
-      }
+  handleImpl = handleMapHandle mapHandleOpaleye
+
+#else
+
+instance Handle Opaleye where
+  mapHandle = mapHandleOpaleye
+
+#endif
+#endif
 
 -- | Lifted 'O.RunSelectExplicit'.
 runSelectExplicit ::

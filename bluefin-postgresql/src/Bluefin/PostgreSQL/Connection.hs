@@ -1,3 +1,10 @@
+{-# LANGUAGE CPP #-}
+#if MIN_VERSION_bluefin(0, 4, 0)
+{-# LANGUAGE DerivingVia #-}
+{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+#endif
+
 module Bluefin.PostgreSQL.Connection
   ( -- * Effect
     WithConnection (..)
@@ -29,11 +36,31 @@ newtype WithConnection (e :: Effects) = MkWithConnection
   -- ^ Use a 'PSQL.Connection' provided by an interpreter.
   }
 
+mapHandleWithConnection :: (e :> es) => WithConnection e -> WithConnection es
+mapHandleWithConnection h =
+  MkWithConnection
+    { withConnectionImpl = useImplUnder . withConnectionImpl h
+    }
+
+#if MIN_VERSION_bluefin(0, 4, 0)
+
+deriving via OneWayCoercibleHandle WithConnection instance (Handle WithConnection)
+instance (e :> es) => OneWayCoercible (WithConnection e) (WithConnection es) where
+  oneWayCoercibleImpl = oneWayCoercibleTrustMe mapHandleWithConnection
+
+#else
+#if MIN_VERSION_bluefin(0, 2, 1)
+
 instance Handle WithConnection where
-  mapHandle h =
-    MkWithConnection
-      { withConnectionImpl = useImplUnder . withConnectionImpl h
-      }
+  handleImpl = handleMapHandle mapHandleWithConnection
+
+#else
+
+instance Handle WithConnection where
+  mapHandle = mapHandleWithConnection
+
+#endif
+#endif
 
 -- | Use a 'PSQL.Connection' provided by an interpreter.
 withConnection :: (e :> es) => WithConnection e -> (PSQL.Connection -> Eff es a) -> Eff es a
