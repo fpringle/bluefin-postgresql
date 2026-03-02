@@ -17,11 +17,11 @@ let
 
       haskell-overrides = hfinal: hprev:
         let
-          # When we pin specific versions of Haskell packages, they'll go here using callCabal2Nix.
+          bluefin = sources."bluefin-0.4.0.1";
+
           packageOverrides = {
-            /*
-            hello = doJailbreak (hfinal.callCabal2nix "hello" sources.hello { });
-            */
+            bluefin-internal = hfinal.callCabal2nixWithOptions "bluefin-internal" bluefin "--subpath bluefin-internal" { };
+            bluefin = hfinal.callCabal2nixWithOptions "bluefin" bluefin "--subpath bluefin" { };
           };
 
           makePackage = name: path:
