@@ -7,6 +7,8 @@ and this project adheres to [Haskell Package Versioning Policy](https://pvp.hask
 
 ## [Unreleased]
 
+- Support `bluefin` versions `0.2.7 && < 0.6` in [#4](https://github.com/fpringle/bluefin-postgresql/pull/4).
+
 ## [0.1.0.0] - 27.02.2026
 
 ### Added

@@ -1,3 +1,6 @@
+{-# LANGUAGE DerivingVia #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+
 module Bluefin.Opaleye.Effect
   ( -- * Effect
     Opaleye (..)
@@ -38,16 +41,20 @@ data Opaleye (e :: Effects) = MkOpaleye
   , runUpdateImpl :: forall e' haskells. O.Update haskells -> Eff (e' :& e) haskells
   -- ^ Lifted 'O.RunUpdate'.
   }
+  deriving (Handle) via OneWayCoercibleHandle Opaleye
 
-instance Handle Opaleye where
-  mapHandle h =
-    MkOpaleye
-      { runSelectExplicitImpl = \ff sel -> useImplUnder (runSelectExplicitImpl h ff sel)
-      , runSelectFoldExplicitImpl = \ff sel b f -> useImplUnder (runSelectFoldExplicitImpl h ff sel b f)
-      , runInsertImpl = useImplUnder . runInsertImpl h
-      , runDeleteImpl = useImplUnder . runDeleteImpl h
-      , runUpdateImpl = useImplUnder . runUpdateImpl h
-      }
+mapHandleOpaleye :: (e :> es) => Opaleye e -> Opaleye es
+mapHandleOpaleye h =
+  MkOpaleye
+    { runSelectExplicitImpl = \ff sel -> useImplUnder (runSelectExplicitImpl h ff sel)
+    , runSelectFoldExplicitImpl = \ff sel b f -> useImplUnder (runSelectFoldExplicitImpl h ff sel b f)
+    , runInsertImpl = useImplUnder . runInsertImpl h
+    , runDeleteImpl = useImplUnder . runDeleteImpl h
+    , runUpdateImpl = useImplUnder . runUpdateImpl h
+    }
+
+instance (e :> es) => OneWayCoercible (Opaleye e) (Opaleye es) where
+  oneWayCoercibleImpl = oneWayCoercibleTrustMe mapHandleOpaleye
 
 -- | Lifted 'O.RunSelectExplicit'.
 runSelectExplicit ::

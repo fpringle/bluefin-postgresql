@@ -1,3 +1,6 @@
+{-# LANGUAGE DerivingVia #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+
 module Bluefin.PostgreSQL.Connection
   ( -- * Effect
     WithConnection (..)
@@ -28,12 +31,16 @@ newtype WithConnection (e :: Effects) = MkWithConnection
   { withConnectionImpl :: forall e' a. (PSQL.Connection -> Eff e' a) -> Eff (e' :& e) a
   -- ^ Use a 'PSQL.Connection' provided by an interpreter.
   }
+  deriving (Handle) via OneWayCoercibleHandle WithConnection
 
-instance Handle WithConnection where
-  mapHandle h =
-    MkWithConnection
-      { withConnectionImpl = useImplUnder . withConnectionImpl h
-      }
+mapHandleWithConnection :: (e :> es) => WithConnection e -> WithConnection es
+mapHandleWithConnection h =
+  MkWithConnection
+    { withConnectionImpl = useImplUnder . withConnectionImpl h
+    }
+
+instance (e :> es) => OneWayCoercible (WithConnection e) (WithConnection es) where
+  oneWayCoercibleImpl = oneWayCoercibleTrustMe mapHandleWithConnection
 
 -- | Use a 'PSQL.Connection' provided by an interpreter.
 withConnection :: (e :> es) => WithConnection e -> (PSQL.Connection -> Eff es a) -> Eff es a
