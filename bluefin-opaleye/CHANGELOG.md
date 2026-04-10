@@ -7,7 +7,9 @@ and this project adheres to [Haskell Package Versioning Policy](https://pvp.hask
 
 ## [Unreleased]
 
+### Changed
 - Support `bluefin` versions `0.2.7 && < 0.6` in [#4](https://github.com/fpringle/bluefin-postgresql/pull/4).
+- Extract common operation counting code to [postgresql-operation-counting](https://github.com/fpringle/postgresql-operation-counting) in [#6](https://github.com/fpringle/bluefin-postgresql/pull/6). Breaking change.
 
 ## [0.1.0.0] - 27.02.2026
 
