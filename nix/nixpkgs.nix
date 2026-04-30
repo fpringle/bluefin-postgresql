@@ -25,6 +25,7 @@ let
             bluefin = hfinal.callCabal2nixWithOptions "bluefin" bluefin "--subpath bluefin" { };
             postgresql-libpq = doJailbreak hprev.postgresql-libpq;
             hlint = doJailbreak hprev.hlint;
+            postgresql-operation-counting = hfinal.callCabal2nix "postgresql-operation-counting" "${sources.postgresql-operation-counting}" { };
           };
 
           makePackage = name: path:
