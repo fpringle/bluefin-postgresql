@@ -828,6 +828,13 @@ runPostgreSQL withConn ioe k =
     returningWithImpl parser q rows = withConnection withConn $ \conn -> effIO ioe $ PSQL.returningWith parser conn q rows
 
 #if OTEL
+{- | An interpreter for the 'PostgreSQL' effect that runs database operations using OpenTelemetry instrumentation.
+
+Basically the same as 'runPostgreSQL' except it uses the functions from
+[OpenTelemetry.Instrumentation.PostgresqlSimple](https://hackage-content.haskell.org/package/hs-opentelemetry-instrumentation-postgresql-simple/docs/OpenTelemetry-Instrumentation-PostgresqlSimple.html).
+
+Note that the @enable-opentel@ cabal flag must be set to enable this functionality.
+-}
 runPostgreSQLOT ::
   forall e1 e2 es b.
   (HasCallStack, e1 :> es, e2 :> es) =>
