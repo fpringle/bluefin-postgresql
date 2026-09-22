@@ -35,7 +35,7 @@ common deps
     , bluefin >= 0.2.7 && < 0.11
     , opaleye >= 0.9 && < 0.11
     , product-profunctors >= 0.9 && < 0.12
-    , bluefin-postgresql >= 0.1 && < 0.2
+    , bluefin-postgresql >= 0.1 && < 0.3
     , postgresql-simple >= 0.7 && < 0.8
     , text >= 2.0 && < 2.2
     , containers >= 0.6 && < 0.8
