@@ -1,6 +1,6 @@
 cabal-version:      3.0
 name:               bluefin-opaleye
-version:            0.1.0.0
+version:            0.2.0.0
 synopsis:
   bluefin support for high-level PostgreSQL operations via Opaleye.
 description:
