@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RecordWildCards #-}
@@ -8,6 +9,9 @@ module Bluefin.PostgreSQL.Effect
 
     -- ** Interpreters
   , runPostgreSQL
+#if OTEL
+  , runPostgreSQLOT
+#endif
 
     -- * Lifted versions of functions from Database.PostgreSQL.Simple
 
@@ -66,6 +70,9 @@ import qualified Database.PostgreSQL.Simple as PSQL
 import qualified Database.PostgreSQL.Simple.FromRow as PSQL
 import qualified Database.PostgreSQL.Simple.Transaction as PSQL
 import GHC.Stack
+#if OTEL
+import qualified OpenTelemetry.Instrumentation.PostgresqlSimple as OT
+#endif
 
 -- | Dynamic effect representing all the Postgres operations we want to perform.
 data PostgreSQL (e :: Effects) = MkPostgreSQL
@@ -819,3 +826,227 @@ runPostgreSQL withConn ioe k =
       [q] ->
       Eff es [r]
     returningWithImpl parser q rows = withConnection withConn $ \conn -> effIO ioe $ PSQL.returningWith parser conn q rows
+
+#if OTEL
+runPostgreSQLOT ::
+  forall e1 e2 es b.
+  (HasCallStack, e1 :> es, e2 :> es) =>
+  WithConnection e1 ->
+  IOE e2 ->
+  (forall e. PostgreSQL e -> Eff (e :& es) b) ->
+  Eff es b
+runPostgreSQLOT withConn ioe k =
+  useImplIn k MkPostgreSQL {..}
+  where
+    queryImpl :: forall q r. (PSQL.ToRow q, PSQL.FromRow r) => PSQL.Query -> q -> Eff es [r]
+    queryImpl q row = withConnection withConn $ \conn -> effIO ioe (OT.query conn q row)
+
+    queryWithImpl :: forall q r. (PSQL.ToRow q) => PSQL.RowParser r -> PSQL.Query -> q -> Eff es [r]
+    queryWithImpl parser q row =
+      withConnection withConn $ \conn -> effIO ioe (OT.queryWith parser conn q row)
+
+    query_Impl :: forall r. (PSQL.FromRow r) => PSQL.Query -> Eff es [r]
+    query_Impl row =
+      withConnection withConn $ \conn -> effIO ioe (OT.query_ conn row)
+
+    queryWith_Impl :: forall r. PSQL.RowParser r -> PSQL.Query -> Eff es [r]
+    queryWith_Impl parser row =
+      withConnection withConn $ \conn -> effIO ioe (OT.queryWith_ parser conn row)
+
+    executeImpl :: forall q. (PSQL.ToRow q) => PSQL.Query -> q -> Eff es Int64
+    executeImpl q row = withConnection withConn $ \conn -> effIO ioe (OT.execute conn q row)
+
+    execute_Impl :: PSQL.Query -> Eff es Int64
+    execute_Impl q = withConnection withConn $ \conn -> effIO ioe (OT.execute_ conn q)
+
+    executeManyImpl :: forall q. (PSQL.ToRow q) => PSQL.Query -> [q] -> Eff es Int64
+    executeManyImpl q row = withConnection withConn $ \conn -> effIO ioe (OT.executeMany conn q row)
+
+    withTransactionImpl :: forall e' a. Eff e' a -> Eff (e' :& es) a
+    withTransactionImpl f = unliftWithConn withConn ioe $ \conn unlift -> OT.withTransaction conn (unlift $ useImpl f)
+
+    withTransactionLevelImpl :: forall e' a. PSQL.IsolationLevel -> Eff e' a -> Eff (e' :& es) a
+    withTransactionLevelImpl level f = unliftWithConn withConn ioe $ \conn unlift -> PSQL.withTransactionLevel level conn (unlift $ useImpl f)
+
+    withTransactionModeImpl :: forall e' a. PSQL.TransactionMode -> Eff e' a -> Eff (e' :& es) a
+    withTransactionModeImpl mode f = unliftWithConn withConn ioe $ \conn unlift -> PSQL.withTransactionMode mode conn (unlift $ useImpl f)
+
+    withTransactionModeRetryImpl :: forall e' a. PSQL.TransactionMode -> (PSQL.SqlError -> Bool) -> Eff e' a -> Eff (e' :& es) a
+    withTransactionModeRetryImpl mode shouldRetry f = unliftWithConn withConn ioe $ \conn unlift -> PSQL.withTransactionModeRetry mode shouldRetry conn (unlift $ useImpl f)
+
+    withTransactionModeRetry'Impl :: forall exc e' a. (E.Exception exc) => PSQL.TransactionMode -> (exc -> Bool) -> Eff e' a -> Eff (e' :& es) a
+    withTransactionModeRetry'Impl mode shouldRetry f = unliftWithConn withConn ioe $ \conn unlift -> PSQL.withTransactionModeRetry' mode shouldRetry conn (unlift $ useImpl f)
+
+    withTransactionSerializableImpl :: forall e' a. Eff e' a -> Eff (e' :& es) a
+    withTransactionSerializableImpl f = unliftWithConn withConn ioe $ \conn unlift -> PSQL.withTransactionSerializable conn (unlift $ useImpl f)
+
+    withSavepointImpl :: forall e' a. Eff e' a -> Eff (e' :& es) a
+    withSavepointImpl f = unliftWithConn withConn ioe $ \conn unlift -> OT.withSavepoint conn (unlift $ useImpl f)
+
+    beginImpl :: Eff es ()
+    beginImpl = withConnection withConn $ effIO ioe . OT.begin
+
+    commitImpl :: Eff es ()
+    commitImpl = withConnection withConn $ effIO ioe . OT.commit
+
+    rollbackImpl :: Eff es ()
+    rollbackImpl = withConnection withConn $ effIO ioe . OT.rollback
+
+    foldImpl ::
+      forall row params e' a.
+      (PSQL.FromRow row, PSQL.ToRow params) =>
+      PSQL.Query ->
+      params ->
+      a ->
+      (a -> row -> Eff e' a) ->
+      Eff (e' :& es) a
+    foldImpl q params a f =
+      unliftWithConn withConn ioe $ \conn unlift ->
+        OT.fold conn q params a (unlift ... (useImpl ... f))
+
+    fold_Impl ::
+      forall row e' a.
+      (PSQL.FromRow row) =>
+      PSQL.Query ->
+      a ->
+      (a -> row -> Eff e' a) ->
+      Eff (e' :& es) a
+    fold_Impl q a f =
+      unliftWithConn withConn ioe $ \conn unlift ->
+        OT.fold_ conn q a (unlift ... (useImpl ... f))
+
+    foldWithOptionsImpl ::
+      forall row params e' a.
+      (PSQL.FromRow row, PSQL.ToRow params) =>
+      PSQL.FoldOptions ->
+      PSQL.Query ->
+      params ->
+      a ->
+      (a -> row -> Eff e' a) ->
+      Eff (e' :& es) a
+    foldWithOptionsImpl opts q params a f =
+      unliftWithConn withConn ioe $ \conn unlift ->
+        OT.foldWithOptions opts conn q params a (unlift ... (useImpl ... f))
+
+    foldWithOptions_Impl ::
+      forall row e' a.
+      (PSQL.FromRow row) =>
+      PSQL.FoldOptions ->
+      PSQL.Query ->
+      a ->
+      (a -> row -> Eff e' a) ->
+      Eff (e' :& es) a
+    foldWithOptions_Impl opts q a f =
+      unliftWithConn withConn ioe $ \conn unlift ->
+        OT.foldWithOptions_ opts conn q a (unlift ... (useImpl ... f))
+
+    forEachImpl ::
+      forall r q e'.
+      (PSQL.FromRow r, PSQL.ToRow q) =>
+      PSQL.Query ->
+      q ->
+      (r -> Eff e' ()) ->
+      Eff (e' :& es) ()
+    forEachImpl q row forR =
+      unliftWithConn withConn ioe $ \conn unlift ->
+        OT.forEachWith PSQL.fromRow conn q row (unlift . useImpl . forR)
+
+    forEach_Impl ::
+      forall r e'.
+      (PSQL.FromRow r) =>
+      PSQL.Query ->
+      (r -> Eff e' ()) ->
+      Eff (e' :& es) ()
+    forEach_Impl q forR =
+      unliftWithConn withConn ioe $ \conn unlift ->
+        OT.forEach_ conn q (unlift . useImpl . forR)
+
+    returningImpl ::
+      forall r q.
+      (PSQL.ToRow q, PSQL.FromRow r) =>
+      PSQL.Query ->
+      [q] ->
+      Eff es [r]
+    returningImpl q rows = withConnection withConn $ \conn -> effIO ioe $ OT.returning conn q rows
+
+    foldWithImpl ::
+      forall row params e' a.
+      (PSQL.ToRow params) =>
+      PSQL.RowParser row ->
+      PSQL.Query ->
+      params ->
+      a ->
+      (a -> row -> Eff e' a) ->
+      Eff (e' :& es) a
+    foldWithImpl parser q params a f =
+      unliftWithConn withConn ioe $ \conn unlift ->
+        OT.foldWith parser conn q params a (unlift ... (useImpl ... f))
+
+    foldWithOptionsAndParserImpl ::
+      forall row params e' a.
+      (PSQL.ToRow params) =>
+      PSQL.FoldOptions ->
+      PSQL.RowParser row ->
+      PSQL.Query ->
+      params ->
+      a ->
+      (a -> row -> Eff e' a) ->
+      Eff (e' :& es) a
+    foldWithOptionsAndParserImpl opts parser q params a f =
+      unliftWithConn withConn ioe $ \conn unlift ->
+        OT.foldWithOptionsAndParser opts parser conn q params a (unlift ... (useImpl ... f))
+
+    foldWith_Impl ::
+      forall row e' a.
+      PSQL.RowParser row ->
+      PSQL.Query ->
+      a ->
+      (a -> row -> Eff e' a) ->
+      Eff (e' :& es) a
+    foldWith_Impl parser q a f =
+      unliftWithConn withConn ioe $ \conn unlift ->
+        OT.foldWith_ parser conn q a (unlift ... (useImpl ... f))
+
+    foldWithOptionsAndParser_Impl ::
+      forall row e' a.
+      PSQL.FoldOptions ->
+      PSQL.RowParser row ->
+      PSQL.Query ->
+      a ->
+      (a -> row -> Eff e' a) ->
+      Eff (e' :& es) a
+    foldWithOptionsAndParser_Impl opts parser q a f =
+      unliftWithConn withConn ioe $ \conn unlift ->
+        OT.foldWithOptionsAndParser_ opts parser conn q a (unlift ... (useImpl ... f))
+
+    forEachWithImpl ::
+      forall r q e'.
+      (PSQL.ToRow q) =>
+      PSQL.RowParser r ->
+      PSQL.Query ->
+      q ->
+      (r -> Eff e' ()) ->
+      Eff (e' :& es) ()
+    forEachWithImpl parser q row forR =
+      unliftWithConn withConn ioe $ \conn unlift ->
+        OT.forEachWith parser conn q row (unlift . useImpl . forR)
+
+    forEachWith_Impl ::
+      forall r e'.
+      PSQL.RowParser r ->
+      PSQL.Query ->
+      (r -> Eff e' ()) ->
+      Eff (e' :& es) ()
+    forEachWith_Impl parser q forR =
+      unliftWithConn withConn ioe $ \conn unlift ->
+        OT.forEachWith_ parser conn q (unlift . useImpl . forR)
+
+    returningWithImpl ::
+      forall r q.
+      (PSQL.ToRow q) =>
+      PSQL.RowParser r ->
+      PSQL.Query ->
+      [q] ->
+      Eff es [r]
+    returningWithImpl parser q rows = withConnection withConn $ \conn -> effIO ioe $ OT.returningWith parser conn q rows
+#endif
