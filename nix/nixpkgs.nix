@@ -17,7 +17,8 @@ let
 
       haskell-overrides = hfinal: hprev:
         let
-          bluefin = sources."bluefin-0.5.1.0";
+          bluefin = sources."bluefin-0.10.0.0";
+          # bluefin = sources."bluefin-0.5.1.0";
           # bluefin = sources."bluefin-0.2.7.0";
 
           packageOverrides = {
