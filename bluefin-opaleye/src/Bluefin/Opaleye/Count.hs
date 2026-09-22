@@ -17,13 +17,13 @@ We would expect the number of SELECTs to remain basically constant (O(1)), while
 A very naive implementation might be:
 
 @
-insertUsersNaive :: ('Opaleye' :> es) => [User] -> Eff es ()
-insertUsersNaive users = for_ users $ \user -> do
-  insertUserFlat user
+insertUsersNaive :: (e :> es) => 'Opaleye' e -> [User] -> Eff es ()
+insertUsersNaive o users = for_ users $ \user -> do
+  insertUserFlat o user
   for (transactions user) $ \transaction -> do
-    insertTransactionFlat transaction
+    insertTransactionFlat o transaction
     for (subTransactions transaction) $ \subTransaction -> do
-      insertSubTransactionFlat subTransaction
+      insertSubTransactionFlat o subTransaction
 @
 
 However, if we ran a "benchmark" that looked something like this:
@@ -33,13 +33,23 @@ u1, u5, u10, u50 :: [User]
 u1 = [User {transactions = [Transaction [SubTransaction]]}] -- one user, one transaction, one sub-transaction
 u5 = ...  -- five users, each with five transactions, each with 5 sub-transactions
 
-benchmark :: ('Opaleye' :> es, State SQLOperationCounts :> es, IOE :> es) => Eff es ()
-benchmark = for_ [(1, u1), (5, u5), (10, u10), (50, u50)] $ \(n, users) -> do
-  (counts, ()) <- withCounts $ insertUsersNaive users
-  liftIO . putStrLn $ "Counts at n=" <> show n <> ": " <> 'renderCountsBrief' counts
+benchmark ::
+  (e :> es, e1 :> es, e2 :> es) =>
+  'Opaleye' e ->
+  State SQLOperationCounts e1 ->
+  IOE e2 ->
+  Eff es ()
+benchmark o st ioe = for_ [(1, u1), (5, u5), (10, u10), (50, u50)] $ \(n, users) -> do
+  (counts, ()) <- withCounts st $ insertUsersNaive o users
+  effIO ioe . putStrLn $ "Counts at n=" <> show n <> ": " <> 'renderCountsBrief' counts
 
 main :: IO ()
-main = runEff . 'Conn.runWithConnectInfo' connInfo . evalState @SQLOperationCounts mempty . runOpaleyeWithConnectionCounting $ benchmark
+main =
+  runEff $ \ioe ->
+    'Conn.runWithConnectInfo' ioe connInfo $ \withConn ->
+      evalState @SQLOperationCounts mempty $ \st ->
+        runOpaleyeWithConnectionCounting withConn ioe st $ \o ->
+          benchmark o st ioe
   where
     connInfo = ...
 @
@@ -56,13 +66,13 @@ Counts at n=50: INSERT: 127550
 This is obviously going to have a severe performance impact. Rearranging our implementation of @insertUsers@:
 
 @
-insertUsersBetter :: ('Opaleye' :> es) => [User] -> Eff es ()
-insertUsersBetter users = do
+insertUsersBetter :: (e :> es) => 'Opaleye' e -> [User] -> Eff es ()
+insertUsersBetter o users = do
   let transactions_ = concatMap transactions users
       subTransactions_ = concatMap subTransactions transactions_
-  insertUsersFlat users
-  insertTransactionsFlat transactions_
-  insertSubTransactionsFlat subTransactions_
+  insertUsersFlat o users
+  insertTransactionsFlat o transactions_
+  insertSubTransactionsFlat o subTransactions_
 @
 
 As long as @insertTransactionsFlat@ etc are smart enough to only do one 'runInsert', then we should now get:
