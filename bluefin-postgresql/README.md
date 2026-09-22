@@ -74,6 +74,14 @@ dischargePostgreSQL withConn ioe =
   runPostgreSQL withConn ioe $ \psql -> insertAndListCarefully psql
 ```
 
+Alternatively we can use the OpenTelemetry support provided by [hs-opentelemetry-instrumentation-postgresql-simple](https://hackage-content.haskell.org/package/hs-opentelemetry-instrumentation-postgresql-simple/docs/OpenTelemetry-Instrumentation-PostgresqlSimple.html) (note that this requires enabling the `enable-opentel` cabal flag):
+
+```haskell
+dischargePostgreSQLUsingOpenTelemetry :: (e :> es, e1 :> es) => WithConnection e -> IOE e1 -> Eff es [User]
+dischargePostgreSQLUsingOpenTelemetry withConn ioe =
+  runPostgreSQLOT withConn ioe $ \psql -> insertAndListCarefully psql
+```
+
 The simplest way of running the `WithConnection` effect is by just providing a `Connection`, which we can get in the normal ways:
 
 ```haskell
