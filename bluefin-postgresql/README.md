@@ -1,8 +1,10 @@
 # bluefin-postgresql
 
-This package provides a `bluefin` effect for [postgresql-simple](https://hackage.haskell.org/package/postgresql-simple)'s `Connection` type.
+This package provides `bluefin` effects for [postgresql-simple](https://hackage.haskell.org/package/postgresql-simple)'s `Connection` type.
 
-It defines a dynamic effect to allow effectful functions to use a `Connection`, without worrying about where that `Connection` comes from.
+It defines:
+- a dynamic `WithConnection` effect to allow effectful functions to use a `Connection`, without worrying about where that `Connection` comes from.
+- a dynamic `PostgreSQL` effect ro run database operations from `postgresql-simple`.
 
 For a higher-level effect library using [Opaleye](https://hackage.haskell.org/package/opaleye), see [bluefin-opaleye](https://github.com/fpringle/bluefin-postgresql/blob/main/bluefin-opaleye#readme).
 
@@ -25,21 +27,19 @@ insertAndList wc ioe = BP.withConnection wc $ \conn -> do
   effIO ioe $ PSQL.query conn "select * from users where first_name in ?" $ PSQL.Only $ PSQL.In ["Anna", "Boris", "Carla"]
 ```
 
-In fact, for convenience we also define lifted versions of all of the query/execute
-functions from `postgresql-simple`, so we can completely forget about `Connection` and rewrite the above to:
+The `PostgreSQL` effect lets us completely forget about `Connection` and rewrite the above to:
 
 ```haskell
 
 import Bluefin.PostgreSQL
 
 insertAndList ::
-  (e :> es, e1 :> es) =>
-  WithConnection e ->
-  IOE e1 ->
+  (e :> es) =>
+  PostgreSQL e ->
   Eff es [User]
-insertAndList wc ioe = do
-  BP.execute wc ioe "insert into users (first_name) values (?)" ["Nuala"]
-  BP.query wc ioe "select * from users where first_name in ?" $ PSQL.Only $ PSQL.In ["Anna", "Boris", "Carla"]
+insertAndList psql = do
+  BP.execute psql "insert into users (first_name) values (?)" ["Nuala"]
+  BP.query psql "select * from users where first_name in ?" $ PSQL.Only $ PSQL.In ["Anna", "Boris", "Carla"]
 ```
 
 The same goes for other functions:
@@ -47,25 +47,32 @@ The same goes for other functions:
 ```haskell
 -- use a transaction
 insertAndListCarefully ::
-  (e :> es, e1 :> es) =>
-  WithConnection e ->
-  IOE e1 ->
+  (e :> es) =>
+  PostgreSQL e ->
   Eff es [User]
-insertAndListCarefully wc ioe = BP.withTransaction wc ioe $ insertAndList wc ioe
+insertAndListCarefully psql = BP.withTransaction psql $ insertAndList psql
 
 -- stream + fold over results (in Eff)
 countUsersIneffeciently ::
   (e :> es, e1 :> es) =>
-  WithConnection e ->
+  PostgreSQL e ->
   IOE e1 ->
   Eff es Int
-countUsersIneffeciently wc ioe =
-  BP.fold_ wc ioe "select * from users" 0 $ \acc (row :: User) -> do
+countUsersIneffeciently psql ioe =
+  BP.fold_ psql "select * from users" 0 $ \acc (row :: User) -> do
     effIO ioe . putStrLn $ "User: " <> show row
     pure $ acc + 1
 ```
 
 ## Interpreters
+
+In order to discharge the `PostgreSQL` effect we use the `WithConnection` effect:
+
+```haskell
+dischargePostgreSQL :: (e :> es, e1 :> es) => WithConnection e -> IOE e1 -> Eff es [User]
+dischargePostgreSQL withConn ioe =
+  runPostgreSQL withConn ioe $ \psql -> insertAndListCarefully psql
+```
 
 The simplest way of running the `WithConnection` effect is by just providing a `Connection`, which we can get in the normal ways:
 
@@ -77,13 +84,16 @@ usingConnection :: IO ()
 usingConnection =
   runEff $ \ioe ->
     bracket (effIO ioe $ PSQL.connectPostgreSQL "") (effIO ioe . PSQL.close) $ \conn ->
-      BP.runWithConnection conn $ \wc -> insertAndListCarefully wc ioe >>= effIO ioe . print
+      BP.runWithConnection conn $ \wc -> 
+        BP.runPostgreSQL wc ioe $ \psql -> 
+          insertAndListCarefully wc ioe >>= effIO ioe . print
 
 usingConnectInfo :: IO ()
 usingConnectInfo =
   runEff $ \ioe ->
     BP.runWithConnectInfo ioe PSQL.defaultConnectInfo $ \wc ->
-      insertAndListCarefully wc ioe >>= effIO ioe . print
+      BP.runPostgreSQL wc ioe $ \psql -> 
+        insertAndListCarefully psql >>= effIO ioe . print
 ```
 
 Alternatively, we can use a connection pool (from [resource-pool](https://hackage.haskell.org/package/resource-pool)
