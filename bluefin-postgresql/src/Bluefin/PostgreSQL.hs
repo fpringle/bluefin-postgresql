@@ -14,6 +14,9 @@ module Bluefin.PostgreSQL
 #endif
 
   , runPostgreSQL
+#if OTEL
+  , runPostgreSQLOT
+#endif
 
     -- * Lifted versions of functions from Database.PostgreSQL.Simple
 
