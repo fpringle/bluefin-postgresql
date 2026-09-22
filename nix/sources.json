@@ -23,6 +23,18 @@
         "url": "https://github.com/tomjaguarpaw/bluefin/archive/262738baf5891ec9d797470e2d3a9a958ad9c0f6.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
+    "bluefin-0.10.0.0": {
+        "branch": "master",
+        "description": null,
+        "homepage": null,
+        "owner": "tomjaguarpaw",
+        "repo": "bluefin",
+        "rev": "bb0b5fd91a895605cc6535658a269e95582ffeaf",
+        "sha256": "0clycqpp9vz01gyjjrvnwws185616sg3dz75xi4hnxym0vx9vzg4",
+        "type": "tarball",
+        "url": "https://github.com/tomjaguarpaw/bluefin/archive/bb0b5fd91a895605cc6535658a269e95582ffeaf.tar.gz",
+        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
+    },
     "nixpkgs": {
         "branch": "nixos-unstable",
         "description": "Nix Packages collection",

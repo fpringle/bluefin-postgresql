@@ -11,6 +11,7 @@ and this project adheres to [Haskell Package Versioning Policy](https://pvp.hask
 
 - Support `bluefin` versions `0.2.7 && < 0.6` in [#4](https://github.com/fpringle/bluefin-postgresql/pull/4).
 - Dynamic `PostgreSQL` effect in [#7](https://github.com/fpringle/bluefin-postgresql/pull/7).
+- Support `bluefin < 0.11` in [#8](https://github.com/fpringle/bluefin-postgresql/pull/8).
 
 ## [0.1.0.0] - 27.02.2026
 
